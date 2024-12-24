@@ -1,0 +1,5 @@
+data/
+.venv
+__pycache__
+~$Model logs and comparison.xlsx
+
