@@ -33,6 +33,7 @@ class CIFAR10Dataset(Dataset):
             
         return image, label
 
+
 # Training Transforms
 train_transform = A.Compose([
     A.HorizontalFlip(p=0.5),
