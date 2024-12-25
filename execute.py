@@ -71,7 +71,7 @@ test_transform = A.Compose([
 ])
 
 # Training Parameters
-EPOCHS = 50
+EPOCHS = 20
 batch_size_train = 128
 batch_size_test = 1000
 
@@ -79,7 +79,7 @@ batch_size_test = 1000
 classes = ('plane', 'car', 'bird', 'cat', 'deer',
            'dog', 'frog', 'horse', 'ship', 'truck')
 
-def train(model, device, train_loader, optimizer, criterion, epoch):
+def train(model, device, train_loader, optimizer, scheduler, criterion, epoch):
     model.train()
     pbar = tqdm(train_loader)
     train_loss = 0
@@ -89,10 +89,6 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
     for batch_idx, (data, target) in enumerate(pbar):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        
-        # Get initial parameters
-        if batch_idx == 0:
-            initial_params = next(model.parameters())[0,0,0,0].item()
         
         # Predict
         pred = model(data)
@@ -104,7 +100,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
         # Backpropagation
         loss.backward()
         optimizer.step()
-        
+        scheduler.step()
 
         # Update Progress Bar
         pred = pred.argmax(dim=1, keepdim=True)
@@ -207,14 +203,18 @@ if __name__ == '__main__':
                                 weight_decay=1e-4)
     criterion = nn.NLLLoss()
     
+    # Calculate total steps for OneCycleLR
+    total_steps = EPOCHS * len(train_loader)
+
     # Add Learning Rate Scheduler
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
-        mode='min',           # Reduce LR when validation loss stops decreasing
-        factor=0.1,          # Multiply LR by this factor
-        patience=3,          # Number of epochs with no improvement after which LR will be reduced
-        verbose=True,        # Print message when LR is reduced
-        min_lr=1e-6         # Lower bound on the learning rate
+        max_lr=0.01,              # Peak learning rate
+        total_steps=total_steps,
+        pct_start=0.3,            # 30% of training in warmup
+        div_factor=10,            # Initial LR = max_lr/10
+        final_div_factor=100,     # Final LR = max_lr/1000
+        anneal_strategy='cos'     # Cosine annealing
     )
 
     # Lists to store metrics for plotting
@@ -222,14 +222,16 @@ if __name__ == '__main__':
     test_accuracies = []
     train_losses = []
     test_losses = []
+    learning_rates = []  # New list to store LRs
 
     # Training loop
     for epoch in range(1, EPOCHS + 1):
-        train_acc, train_loss = train(model, device, train_loader, optimizer, criterion, epoch)
-        test_acc, test_loss, misclassified_images, misclassified_labels, misclassified_preds = test(model, device, test_loader, criterion, epoch)
+        # Get current learning rate
+        current_lr = optimizer.param_groups[0]['lr']
+        learning_rates.append(current_lr)
         
-        # Step the scheduler based on validation loss
-        scheduler.step(test_loss)
+        train_acc, train_loss = train(model, device, train_loader, optimizer, scheduler, criterion, epoch)
+        test_acc, test_loss, misclassified_images, misclassified_labels, misclassified_preds = test(model, device, test_loader, criterion, epoch)
         
         train_accuracies.append(train_acc)
         test_accuracies.append(test_acc)
@@ -238,9 +240,9 @@ if __name__ == '__main__':
 
     # Print final results in Excel-friendly format
     print("\nTraining Summary:")
-    print("Epoch\tTraining Accuracy\tTest Accuracy")  # Tab-separated headers
+    print("Epoch\tTraining Accuracy\tTest Accuracy\tLearning Rate")  # Updated headers
     for epoch in range(1, EPOCHS + 1):
-        print(f"{epoch}\t{train_accuracies[epoch-1]:.2f}\t{test_accuracies[epoch-1]:.2f}")
+        print(f"{epoch}\t{train_accuracies[epoch-1]:.2f}\t{test_accuracies[epoch-1]:.2f}\t{learning_rates[epoch-1]:.6f}")
 
     # Plot misclassified images from the last epoch
     print("\nDisplaying 10 misclassified images from the last epoch:")
@@ -254,17 +256,23 @@ if __name__ == '__main__':
 
     # Plot training curves
     plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
+    plt.subplot(1, 3, 1)  # Changed to 1,3,1 to add LR plot
     plt.plot(train_accuracies, label='Train Accuracy')
     plt.plot(test_accuracies, label='Test Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.legend()
     
-    plt.subplot(1, 2, 2)
+    plt.subplot(1, 3, 2)
     plt.plot(train_losses, label='Train Loss')
     plt.plot(test_losses, label='Test Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    plt.legend()
+
+    plt.subplot(1, 3, 3)
+    plt.plot(learning_rates, label='Learning Rate')
+    plt.xlabel('Epoch')
+    plt.ylabel('Learning Rate')
     plt.legend()
     plt.show()
