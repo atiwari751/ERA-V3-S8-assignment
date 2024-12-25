@@ -18,8 +18,8 @@ transform = transforms.Compose([
 ])
 
 # Training Parameters
-EPOCHS = 3
-batch_size_train = 1024
+EPOCHS = 5
+batch_size_train = 64
 batch_size_test = 1000
 
 # CIFAR10 classes
@@ -37,6 +37,10 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         
+        # Get initial parameters
+        if batch_idx == 0:
+            initial_params = next(model.parameters())[0,0,0,0].item()
+        
         # Predict
         pred = model(data)
 
@@ -47,6 +51,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
         # Backpropagation
         loss.backward()
         optimizer.step()
+        
 
         # Update Progress Bar
         pred = pred.argmax(dim=1, keepdim=True)
@@ -140,12 +145,11 @@ if __name__ == '__main__':
         train_losses.append(train_loss)
         test_losses.append(test_loss)
 
-    # Print final results in tabular format
+    # Print final results in Excel-friendly format
     print("\nTraining Summary:")
-    headers = ["Epoch", "Training Accuracy", "Test Accuracy"]
-    table_data = [[epoch, f"{train_accuracies[epoch-1]:.2f}%", f"{test_accuracies[epoch-1]:.2f}%"] 
-                 for epoch in range(1, EPOCHS + 1)]
-    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    print("Epoch\tTraining Accuracy\tTest Accuracy")  # Tab-separated headers
+    for epoch in range(1, EPOCHS + 1):
+        print(f"{epoch}\t{train_accuracies[epoch-1]:.2f}\t{test_accuracies[epoch-1]:.2f}")
 
     # Plot misclassified images from the last epoch
     print("\nDisplaying 10 misclassified images from the last epoch:")
