@@ -52,7 +52,10 @@ class Net(nn.Module):
 
         # Convolution Block 3
         self.conv4 = nn.Sequential(
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1, dilation=2, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU()
         ) # output_size = 8x8 | RF = 20 (j_in=4, RF = 12 + (3-1)*4 = 20)
