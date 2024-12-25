@@ -18,8 +18,8 @@ transform = transforms.Compose([
 ])
 
 # Training Parameters
-EPOCHS = 5
-batch_size_train = 64
+EPOCHS = 20
+batch_size_train = 128
 batch_size_test = 1000
 
 # CIFAR10 classes
