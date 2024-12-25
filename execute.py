@@ -43,6 +43,17 @@ train_transform = A.Compose([
         p=0.5,
         border_mode=cv2.BORDER_REPLICATE
     ),
+    A.CoarseDropout(
+        max_holes=1,
+        max_height=8,
+        max_width=8,
+        min_holes=1,
+        min_height=8,
+        min_width=8,
+        fill=(0.4914, 0.4822, 0.4465),
+        fill_mask=None,
+        p=0.4
+    ),
     A.Normalize(
         mean=[0.4914, 0.4822, 0.4465],
         std=[0.2470, 0.2435, 0.2616]
