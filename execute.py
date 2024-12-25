@@ -71,7 +71,7 @@ test_transform = A.Compose([
 ])
 
 # Training Parameters
-EPOCHS = 20
+EPOCHS = 50
 batch_size_train = 128
 batch_size_test = 1000
 
@@ -206,6 +206,16 @@ if __name__ == '__main__':
                                 lr=0.001, 
                                 weight_decay=1e-4)
     criterion = nn.NLLLoss()
+    
+    # Add Learning Rate Scheduler
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',           # Reduce LR when validation loss stops decreasing
+        factor=0.1,          # Multiply LR by this factor
+        patience=3,          # Number of epochs with no improvement after which LR will be reduced
+        verbose=True,        # Print message when LR is reduced
+        min_lr=1e-6         # Lower bound on the learning rate
+    )
 
     # Lists to store metrics for plotting
     train_accuracies = []
@@ -217,6 +227,9 @@ if __name__ == '__main__':
     for epoch in range(1, EPOCHS + 1):
         train_acc, train_loss = train(model, device, train_loader, optimizer, criterion, epoch)
         test_acc, test_loss, misclassified_images, misclassified_labels, misclassified_preds = test(model, device, test_loader, criterion, epoch)
+        
+        # Step the scheduler based on validation loss
+        scheduler.step(test_loss)
         
         train_accuracies.append(train_acc)
         test_accuracies.append(test_acc)
