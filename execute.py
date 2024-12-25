@@ -37,10 +37,10 @@ class CIFAR10Dataset(Dataset):
 train_transform = A.Compose([
     A.HorizontalFlip(p=0.5),
     A.ShiftScaleRotate(
-        shift_limit=0.1,
-        scale_limit=0.1,
+        shift_limit=0.125,
+        scale_limit=0.15,
         rotate_limit=15,
-        p=0.25,
+        p=0.5,
         border_mode=cv2.BORDER_REPLICATE
     ),
     A.Normalize(
