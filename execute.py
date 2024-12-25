@@ -1,20 +1,54 @@
 from __future__ import print_function
 import torch
 import torchvision
-from torchvision import datasets, transforms
+import numpy as np
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+from torch.utils.data import Dataset, DataLoader
 import numpy
 import matplotlib.pyplot as plt
-from torchvision.utils import make_grid
 from tqdm import tqdm
 from model import Net, get_device
-from tabulate import tabulate
 import torch.nn.functional as F
 import torch.nn as nn
 
-# Define the transformations
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
+# Custom Dataset class for Albumentations
+class CIFAR10Dataset(Dataset):
+    def __init__(self, data, targets, transform=None):
+        self.data = data
+        self.targets = targets
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        image = self.data[idx]
+        label = self.targets[idx]
+        
+        if self.transform:
+            augmented = self.transform(image=image)
+            image = augmented['image']
+            
+        return image, label
+
+# Training Transforms
+train_transform = A.Compose([
+    A.HorizontalFlip(p=0.5),
+    A.Normalize(
+        mean=[0.4914, 0.4822, 0.4465],
+        std=[0.2470, 0.2435, 0.2616]
+    ),
+    ToTensorV2()
+])
+
+# Test Transforms
+test_transform = A.Compose([
+    A.Normalize(
+        mean=[0.4914, 0.4822, 0.4465],
+        std=[0.2470, 0.2435, 0.2616]
+    ),
+    ToTensorV2()
 ])
 
 # Training Parameters
@@ -113,14 +147,39 @@ if __name__ == '__main__':
     
     # Load the data
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                          download=True, transform=transform)
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size_train,
-                                             shuffle=True, num_workers=4, pin_memory=True)
-
+                                          download=True)
     testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                         download=True, transform=transform)
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size_test,
-                                            shuffle=False, num_workers=4, pin_memory=True)
+                                         download=True)
+    
+    # Create custom datasets with albumentations
+    train_dataset = CIFAR10Dataset(
+        data=trainset.data,
+        targets=trainset.targets,
+        transform=train_transform
+    )
+    
+    test_dataset = CIFAR10Dataset(
+        data=testset.data,
+        targets=testset.targets,
+        transform=test_transform
+    )
+    
+    # Create data loaders
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size_train,
+        shuffle=True, 
+        num_workers=4, 
+        pin_memory=True
+    )
+
+    test_loader = DataLoader(
+        test_dataset, 
+        batch_size=batch_size_test,
+        shuffle=False, 
+        num_workers=4, 
+        pin_memory=True
+    )
 
     # Initialize the model, optimizer and criterion
     model = Net().to(device)
