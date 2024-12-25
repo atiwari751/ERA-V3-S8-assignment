@@ -11,6 +11,7 @@ from tqdm import tqdm
 from model import Net, get_device
 import torch.nn.functional as F
 import torch.nn as nn
+import cv2
 
 # Custom Dataset class for Albumentations
 class CIFAR10Dataset(Dataset):
@@ -35,6 +36,13 @@ class CIFAR10Dataset(Dataset):
 # Training Transforms
 train_transform = A.Compose([
     A.HorizontalFlip(p=0.5),
+    A.ShiftScaleRotate(
+        shift_limit=0.125,
+        scale_limit=0.15,
+        rotate_limit=15,
+        p=0.5,
+        border_mode=cv2.BORDER_REPLICATE
+    ),
     A.Normalize(
         mean=[0.4914, 0.4822, 0.4465],
         std=[0.2470, 0.2435, 0.2616]
